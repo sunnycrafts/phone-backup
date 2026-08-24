@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>OnePlusPhoneBackup</AssemblyName>
+    <RootNamespace>PhoneBackup</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
+    <Version>1.1.0</Version>
+    <Product>OnePlus Phone Backup</Product>
+    <Company>OnePlus Phone Backup</Company>
+    <Authors>OnePlus Phone Backup</Authors>
+    <AssemblyTitle>OnePlus Phone Backup</AssemblyTitle>
+    <Description>Incremental OnePlus-to-PC backup, cleanup and duplicate removal.</Description>
+    <Copyright>© 2026</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="test\**" />
+    <None Remove="test\**" />
+    <Page Remove="test\**" />
+  </ItemGroup>
+
+</Project>

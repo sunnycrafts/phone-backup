@@ -1,0 +1,576 @@
+<Window x:Class="PhoneBackup.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="OnePlus Phone Backup"
+        Width="900" Height="740" MinWidth="760" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBg}"
+        FontFamily="Segoe UI Variable Display, Segoe UI"
+        FontSize="13"
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+        <Style x:Key="Win11Tab" TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="14,7" Margin="0,0,6,0" Cursor="Hand">
+                            <StackPanel>
+                                <TextBlock x:Name="Hdr" Text="{TemplateBinding Header}" FontSize="14"
+                                           Foreground="{StaticResource TextSecondary}"/>
+                                <Rectangle x:Name="Ind" Height="3" RadiusX="1.5" RadiusY="1.5" Width="22"
+                                           Fill="Transparent" Margin="0,5,0,-3" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Ind" Property="Fill" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Hdr" Property="FontWeight" Value="SemiBold"/>
+                                <Setter TargetName="Hdr" Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EBEBEB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource AccentButton}">
+            <Setter Property="Background" Value="#C42B1C"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#D13438"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#A4262C"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#E0A8A3"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Every hoverable option in this app carries one of these — a small "(?)" next
+             to settings/labels, or a ToolTip directly on buttons/menus. -->
+        <Style x:Key="HelpHint" TargetType="TextBlock">
+            <Setter Property="Text" Value="(?)"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Help"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+        </Style>
+
+        <Style TargetType="ToolTip">
+            <Setter Property="MaxWidth" Value="340"/>
+            <Setter Property="Padding" Value="9,7"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- ===== Hover-help text, one place per control so the (?) hint and the
+             control's own ToolTip never drift out of sync. ===== -->
+        <sys:String x:Key="Tip_Device">The phone detected over USB. Plug it in and choose "File Transfer" on the phone's USB notification, then click Refresh if it doesn't show up here.</sys:String>
+        <sys:String x:Key="Tip_RefreshDevices">Re-scan Windows for connected phones.</sys:String>
+        <sys:String x:Key="Tip_BackupFolder">The folder on this PC where the backup is stored. Point it at an existing backup folder (e.g. an old phone's) to add to it — this app never deletes or replaces what's already there without asking.</sys:String>
+        <sys:String x:Key="Tip_ChooseBackupFolder">Pick or change the destination folder.</sys:String>
+        <sys:String x:Key="Tip_MinSize">Skip phone files smaller than this — cuts out thousands of tiny system files that would slow the copy down without being worth backing up. Documents and WhatsApp/Telegram media are always kept regardless of size. Pick a preset or type your own, e.g. "2 MB" or "Off".</sys:String>
+        <sys:String x:Key="Tip_KeepDocs">Never skip PDFs, Office files, TXT, or contact exports, even if they're smaller than the size limit above.</sys:String>
+        <sys:String x:Key="Tip_SkipHidden">Skip files and folders whose name starts with a dot — includes ".trashed-*" (Android's hidden recycle bin for deleted photos) and thumbnail caches. Turning this off would also back up your recently-deleted photos.</sys:String>
+        <sys:String x:Key="Tip_MirrorWhatsApp">After backing up, also copy your WhatsApp/Telegram photos and videos into the phone's own Pictures folder, so they show up in your gallery and survive an app uninstall.</sys:String>
+        <sys:String x:Key="Tip_AvoidDupes">Checks by content, not just filename — catches the same photo copied between two phones under different names. A file this app doesn't recognize as its own is never overwritten, no matter how this is set.</sys:String>
+        <sys:String x:Key="Tip_ExcludedFolders">Folder names or paths to skip entirely, comma-separated. A plain name like "cache" matches at any depth; a name with a slash like "Android/data" matches only that exact path.</sys:String>
+        <sys:String x:Key="Tip_BackupNow">Start copying new and changed files from the phone. Safe to run again any time — only what's new or changed since the last run is copied.</sys:String>
+        <sys:String x:Key="Tip_StopBackup">Stop the backup that's running. Whatever has already been copied stays — the next run picks up where this one left off.</sys:String>
+        <sys:String x:Key="Tip_StatDuplicates">Files that were NOT copied because identical content already exists elsewhere in this backup (e.g. an old phone's backup sitting alongside), so nothing is stored twice.</sys:String>
+        <sys:String x:Key="Tip_StatConflicts">Files where the phone's version was saved under a different name because something already sitting at that path wasn't recognized as this app's own file — nothing was overwritten.</sys:String>
+        <sys:String x:Key="Tip_CleanFolder">The backup folder on this PC to clean up — this tab never touches the phone.</sys:String>
+        <sys:String x:Key="Tip_CleanChooseFolder">Pick or change the folder to clean.</sys:String>
+        <sys:String x:Key="Tip_CleanScan">Look through the chosen folder for junk folders, hidden deleted-on-phone files, junk file types, tiny files, and (for old Galaxy backups) Samsung-only leftovers.</sys:String>
+        <sys:String x:Key="Tip_CleanStop">Stop the scan in progress.</sys:String>
+        <sys:String x:Key="Tip_CleanDelete">Move everything checked below into a red "delete" subfolder, keeping the original folder structure. Nothing is destroyed — review the folder and empty it yourself when you're sure.</sys:String>
+        <sys:String x:Key="Tip_DupFolder">The folder to search for files with identical content.</sys:String>
+        <sys:String x:Key="Tip_DupChooseFolder">Pick or change the folder to search.</sys:String>
+        <sys:String x:Key="Tip_DupMinSize">Only consider files at or above this size — skips tiny files that aren't worth deduplicating. Pick a preset or type your own, e.g. "2 MB" or "Off".</sys:String>
+        <sys:String x:Key="Tip_DupScan">Search the chosen folder for files with identical content (matched by checksum, not filename).</sys:String>
+        <sys:String x:Key="Tip_DupStop">Stop the scan in progress.</sys:String>
+        <sys:String x:Key="Tip_DupSameFolder">When on, identical files that live in DIFFERENT top-level device folders (e.g. an old S23 Ultra backup sitting next to a OnePlus one) are never matched as duplicates of each other — so anything you copy-pasted between phones is left alone. Turn off to also find duplicates across device folders.</sys:String>
+        <sys:String x:Key="Tip_DupStrategy">Which copy to KEEP in each duplicate group when you click Auto-select — the rest get checked for removal.</sys:String>
+        <sys:String x:Key="Tip_DupAuto">Automatically check the copies to remove, based on the strategy chosen to the left, leaving one copy per group (or per folder/device, depending on the strategy).</sys:String>
+        <sys:String x:Key="Tip_DupInvert">Flip every checkbox in the list below — checked becomes unchecked and vice versa.</sys:String>
+        <sys:String x:Key="Tip_DupClear">Uncheck every row in the list below.</sys:String>
+        <sys:String x:Key="Tip_DupDelete">Move every checked file into the red "delete" subfolder, keeping its original path. Nothing is destroyed.</sys:String>
+        <sys:String x:Key="Tip_HistoryRefresh">Reload the history list from disk.</sys:String>
+        <sys:String x:Key="Tip_HistoryOpenLog">Open the plain-text history log file in your default text editor.</sys:String>
+    </Window.Resources>
+
+    <Grid Margin="24,16,24,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="2,0,0,10">
+            <TextBlock Text="OnePlus Phone Backup" FontSize="26" FontWeight="SemiBold"/>
+            <TextBlock Text="Incremental phone-to-PC backup, backup cleanup and duplicate removal."
+                       Foreground="{StaticResource TextSecondary}" Margin="1,2,0,0"/>
+        </StackPanel>
+
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Padding="0">
+
+            <!-- ============ TAB 1: BACKUP ============ -->
+            <TabItem Header="Backup" Style="{StaticResource Win11Tab}">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="&#xE8EA;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="22" VerticalAlignment="Center" Margin="2,0,14,0"
+                                       Foreground="{StaticResource Accent}"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Device" FontWeight="SemiBold"/>
+                                    <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_Device}"/>
+                                </StackPanel>
+                                <Grid Margin="0,6,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="280"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="DeviceCombo" Grid.Column="0" Height="30" VerticalContentAlignment="Center"
+                                              SelectionChanged="DeviceCombo_SelectionChanged" ToolTip="{StaticResource Tip_Device}"/>
+                                    <TextBlock x:Name="DeviceStatus" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
+                                               Foreground="{StaticResource TextSecondary}" Text="Searching for devices…"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </StackPanel>
+                            <Button x:Name="RefreshBtn" Grid.Column="2" Style="{StaticResource SecondaryButton}"
+                                    Content="Refresh" VerticalAlignment="Center" Click="RefreshBtn_Click"
+                                    ToolTip="{StaticResource Tip_RefreshDevices}"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="&#xE8B7;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="22" VerticalAlignment="Center" Margin="2,0,14,0"
+                                       Foreground="{StaticResource Accent}"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Back up to" FontWeight="SemiBold"/>
+                                    <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_BackupFolder}"/>
+                                </StackPanel>
+                                <TextBlock x:Name="DestText" Margin="0,4,0,0" Foreground="{StaticResource TextSecondary}"
+                                           TextTrimming="CharacterEllipsis" ToolTip="{StaticResource Tip_BackupFolder}"/>
+                            </StackPanel>
+                            <Button x:Name="BrowseBtn" Grid.Column="2" Style="{StaticResource SecondaryButton}"
+                                    Content="Choose folder" VerticalAlignment="Center" Click="BrowseBtn_Click"
+                                    ToolTip="{StaticResource Tip_ChooseBackupFolder}"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="What to skip" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                            <WrapPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,24,6" VerticalAlignment="Center">
+                                    <TextBlock Text="Ignore files smaller than" VerticalAlignment="Center"
+                                               Foreground="{StaticResource TextSecondary}" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="MinSizeCombo" Width="110" Height="28" VerticalContentAlignment="Center"
+                                              ToolTip="{StaticResource Tip_MinSize}"/>
+                                    <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_MinSize}"/>
+                                </StackPanel>
+                                <CheckBox x:Name="KeepDocsCheck" VerticalAlignment="Center" Margin="0,0,24,6" IsChecked="True"
+                                          ToolTip="{StaticResource Tip_KeepDocs}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Always keep documents (PDF, Office, TXT, contacts)"/>
+                                        <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_KeepDocs}"/>
+                                    </StackPanel>
+                                </CheckBox>
+                                <CheckBox x:Name="DotFoldersCheck" VerticalAlignment="Center" Margin="0,0,24,6" IsChecked="True"
+                                          ToolTip="{StaticResource Tip_SkipHidden}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Skip hidden (dot) files &amp; folders"/>
+                                        <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_SkipHidden}"/>
+                                    </StackPanel>
+                                </CheckBox>
+                                <CheckBox x:Name="MirrorCheck" VerticalAlignment="Center" Margin="0,0,24,6" IsChecked="True"
+                                          ToolTip="{StaticResource Tip_MirrorWhatsApp}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Copy WhatsApp/Telegram pics &amp; videos to the phone's Pictures folder"/>
+                                        <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_MirrorWhatsApp}"/>
+                                    </StackPanel>
+                                </CheckBox>
+                                <CheckBox x:Name="AvoidDupesCheck" VerticalAlignment="Center" Margin="0,0,0,6" IsChecked="True"
+                                          ToolTip="{StaticResource Tip_AvoidDupes}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Don't store a file twice if its content already exists in this backup (e.g. an old S23U copy)"/>
+                                        <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_AvoidDupes}"/>
+                                    </StackPanel>
+                                </CheckBox>
+                            </WrapPanel>
+                            <Grid Margin="0,6,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="Excluded folders:" Foreground="{StaticResource TextSecondary}"/>
+                                    <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_ExcludedFolders}"/>
+                                </StackPanel>
+                                <TextBox x:Name="ExcludedFoldersBox" Grid.Column="1" Height="28" VerticalContentAlignment="Center"
+                                         BorderBrush="#D8D8D8" ToolTip="{StaticResource Tip_ExcludedFolders}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="3" Margin="0,4,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="BackupBtn" Grid.Column="0" Style="{StaticResource AccentButton}"
+                                Content="Back up now" Click="BackupBtn_Click" ToolTip="{StaticResource Tip_BackupNow}"/>
+                        <Button x:Name="StopBtn" Grid.Column="1" Style="{StaticResource SecondaryButton}"
+                                Content="Stop" Margin="10,0,0,0" IsEnabled="False" Click="StopBtn_Click"
+                                ToolTip="{StaticResource Tip_StopBackup}"/>
+                        <TextBlock x:Name="StatusText" Grid.Column="2" VerticalAlignment="Center" Margin="16,0,0,0"
+                                   Foreground="{StaticResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+
+                    <Border Grid.Row="4" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <ProgressBar x:Name="Progress" Grid.Row="0" Style="{StaticResource Win11ProgressBar}"
+                                         Minimum="0" Maximum="100" Margin="0,4,0,10"/>
+                            <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                                <TextBlock x:Name="StatNew" Text="0 new" FontWeight="SemiBold" Margin="0,0,18,0"/>
+                                <TextBlock x:Name="StatUpdated" Text="0 updated" Margin="0,0,18,0"/>
+                                <TextBlock x:Name="StatSkipped" Text="0 unchanged" Foreground="{StaticResource TextSecondary}" Margin="0,0,18,0"/>
+                                <TextBlock x:Name="StatExcluded" Text="0 excluded" Foreground="{StaticResource TextSecondary}" Margin="0,0,18,0"/>
+                                <TextBlock x:Name="StatDuplicates" Text="0 duplicates avoided" Foreground="{StaticResource TextSecondary}"
+                                           Margin="0,0,18,0" ToolTip="{StaticResource Tip_StatDuplicates}" Cursor="Help"/>
+                                <TextBlock x:Name="StatConflicts" Text="" Foreground="#C42B1C" FontWeight="SemiBold"
+                                           Margin="0,0,18,0" ToolTip="{StaticResource Tip_StatConflicts}" Cursor="Help"/>
+                                <TextBlock x:Name="StatData" Text="0 B" Foreground="{StaticResource TextSecondary}" Margin="0,0,18,0"/>
+                                <TextBlock x:Name="StatSpeed" Text="" Foreground="{StaticResource Accent}" FontWeight="SemiBold"/>
+                            </WrapPanel>
+                            <TextBlock x:Name="CurrentFileText" Grid.Row="2" Foreground="{StaticResource TextSecondary}"
+                                       FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,0,0,8"/>
+                            <TextBox x:Name="LogBox" Grid.Row="3" IsReadOnly="True" TextWrapping="NoWrap"
+                                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                     FontFamily="Cascadia Mono, Consolas" FontSize="11.5"
+                                     Background="#FAFAFA" BorderBrush="#E5E5E5" Padding="8"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ============ TAB 2: CLEANER ============ -->
+            <TabItem Header="Clean backup" Style="{StaticResource Win11Tab}">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="&#xE74E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="22" VerticalAlignment="Center" Margin="2,0,14,0"
+                                       Foreground="{StaticResource Accent}"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Folder to clean" FontWeight="SemiBold"/>
+                                    <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_CleanFolder}"/>
+                                </StackPanel>
+                                <TextBlock x:Name="CleanFolderText" Margin="0,4,0,0" Foreground="{StaticResource TextSecondary}"
+                                           TextTrimming="CharacterEllipsis" ToolTip="{StaticResource Tip_CleanFolder}"/>
+                            </StackPanel>
+                            <Button x:Name="CleanBrowseBtn" Grid.Column="2" Style="{StaticResource SecondaryButton}"
+                                    Content="Choose folder" VerticalAlignment="Center" Margin="0,0,8,0" Click="CleanBrowseBtn_Click"
+                                    ToolTip="{StaticResource Tip_CleanChooseFolder}"/>
+                            <Button x:Name="CleanScanBtn" Grid.Column="3" Style="{StaticResource AccentButton}"
+                                    Content="Scan" VerticalAlignment="Center" Margin="0,0,8,0" Click="CleanScanBtn_Click"
+                                    ToolTip="{StaticResource Tip_CleanScan}"/>
+                            <Button x:Name="CleanCancelBtn" Grid.Column="4" Style="{StaticResource SecondaryButton}"
+                                    Content="Stop" VerticalAlignment="Center" IsEnabled="False" Click="CleanCancelBtn_Click"
+                                    ToolTip="{StaticResource Tip_CleanStop}"/>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock x:Name="CleanStatusText" Grid.Row="1" Margin="2,0,0,8"
+                               Foreground="{StaticResource TextSecondary}"
+                               Text="Finds junk folders, hidden deleted-on-phone files, junk file types, tiny files — and Samsung-specific leftovers in old Galaxy backups. Removed items are MOVED to a red 'delete' folder, never destroyed."/>
+
+                    <Grid Grid.Row="2" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="CleanDeleteBtn" Grid.Column="0" Style="{StaticResource DangerButton}"
+                                Content="Move selected to delete folder" IsEnabled="False" Click="CleanDeleteBtn_Click"
+                                ToolTip="{StaticResource Tip_CleanDelete}"/>
+                        <TextBlock x:Name="CleanSummaryText" Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0"
+                                   Foreground="{StaticResource TextSecondary}"/>
+                    </Grid>
+
+                    <Border Grid.Row="3" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <ListView x:Name="CleanList" Grid.Row="0" MaxHeight="220" BorderThickness="0"
+                                      Background="Transparent" SelectionChanged="CleanList_SelectionChanged"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Width="36">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" Checked="CleanCheck_Changed" Unchecked="CleanCheck_Changed"/>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Category" Width="240" DisplayMemberBinding="{Binding Name}"/>
+                                        <GridViewColumn Header="Items" Width="90" DisplayMemberBinding="{Binding CountText}"/>
+                                        <GridViewColumn Header="Size" Width="90" DisplayMemberBinding="{Binding SizeText}"/>
+                                        <GridViewColumn Header="What it is" Width="380" DisplayMemberBinding="{Binding Description}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                            <TextBox x:Name="CleanPreview" Grid.Row="1" IsReadOnly="True" TextWrapping="NoWrap"
+                                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                     FontFamily="Cascadia Mono, Consolas" FontSize="11.5" Margin="0,8,0,0"
+                                     Background="#FAFAFA" BorderBrush="#E5E5E5" Padding="8"
+                                     Text="Select a category above to preview what would be deleted."/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ============ TAB 3: DUPLICATES ============ -->
+            <TabItem Header="Duplicates" Style="{StaticResource Win11Tab}">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="&#xE8C8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="22" VerticalAlignment="Center" Margin="2,0,14,0"
+                                       Foreground="{StaticResource Accent}"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Folder to search" FontWeight="SemiBold"/>
+                                    <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_DupFolder}"/>
+                                </StackPanel>
+                                <TextBlock x:Name="DupFolderText" Margin="0,4,0,0" Foreground="{StaticResource TextSecondary}"
+                                           TextTrimming="CharacterEllipsis" ToolTip="{StaticResource Tip_DupFolder}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                <TextBlock Text="Min size" VerticalAlignment="Center"
+                                           Foreground="{StaticResource TextSecondary}" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="DupMinSizeCombo" Width="100" Height="28" IsEditable="True"
+                                          VerticalContentAlignment="Center"
+                                          ToolTip="{StaticResource Tip_DupMinSize}"/>
+                                <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_DupMinSize}"/>
+                            </StackPanel>
+                            <Button x:Name="DupBrowseBtn" Grid.Column="3" Style="{StaticResource SecondaryButton}"
+                                    Content="Choose folder" VerticalAlignment="Center" Margin="0,0,8,0" Click="DupBrowseBtn_Click"
+                                    ToolTip="{StaticResource Tip_DupChooseFolder}"/>
+                            <Button x:Name="DupScanBtn" Grid.Column="4" Style="{StaticResource AccentButton}"
+                                    Content="Scan" VerticalAlignment="Center" Margin="0,0,8,0" Click="DupScanBtn_Click"
+                                    ToolTip="{StaticResource Tip_DupScan}"/>
+                            <Button x:Name="DupCancelBtn" Grid.Column="5" Style="{StaticResource SecondaryButton}"
+                                    Content="Stop" VerticalAlignment="Center" IsEnabled="False" Click="DupCancelBtn_Click"
+                                    ToolTip="{StaticResource Tip_DupStop}"/>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,8" Orientation="Horizontal">
+                        <CheckBox x:Name="DupSameFolderCheck" VerticalAlignment="Center" IsChecked="True"
+                                  ToolTip="{StaticResource Tip_DupSameFolder}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Only match within the same device folder (protects files copied between S23U and OnePlus)"/>
+                                <TextBlock Style="{StaticResource HelpHint}" ToolTip="{StaticResource Tip_DupSameFolder}"/>
+                            </StackPanel>
+                        </CheckBox>
+                    </StackPanel>
+
+                    <Grid Grid.Row="2" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="DupStrategyCombo" Grid.Column="0" Width="300" Height="30"
+                                  VerticalContentAlignment="Center" ToolTip="{StaticResource Tip_DupStrategy}"/>
+                        <Button x:Name="DupAutoBtn" Grid.Column="1" Style="{StaticResource SecondaryButton}"
+                                Content="Auto-select" Margin="8,0,0,0" IsEnabled="False" Click="DupAutoBtn_Click"
+                                ToolTip="{StaticResource Tip_DupAuto}"/>
+                        <Button x:Name="DupInvertBtn" Grid.Column="2" Style="{StaticResource SecondaryButton}"
+                                Content="Invert" Margin="8,0,0,0" IsEnabled="False" Click="DupInvertBtn_Click"
+                                ToolTip="{StaticResource Tip_DupInvert}"/>
+                        <Button x:Name="DupClearBtn" Grid.Column="3" Style="{StaticResource SecondaryButton}"
+                                Content="Clear" Margin="8,0,0,0" IsEnabled="False" Click="DupClearBtn_Click"
+                                ToolTip="{StaticResource Tip_DupClear}"/>
+                        <Button x:Name="DupDeleteBtn" Grid.Column="4" Style="{StaticResource DangerButton}"
+                                Content="Move selected to delete folder" Margin="8,0,0,0" IsEnabled="False" Click="DupDeleteBtn_Click"
+                                ToolTip="{StaticResource Tip_DupDelete}"/>
+                        <TextBlock x:Name="DupStatusText" Grid.Column="5" VerticalAlignment="Center" Margin="16,0,0,0"
+                                   Foreground="{StaticResource TextSecondary}" TextTrimming="CharacterEllipsis"
+                                   Text="Finds files with identical content (size + checksum). Removed files go to a red 'delete' folder, not the void."/>
+                    </Grid>
+
+                    <Border Grid.Row="3" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <ProgressBar x:Name="DupProgress" Grid.Row="0" Style="{StaticResource Win11ProgressBar}"
+                                         Minimum="0" Maximum="100" Margin="0,4,0,10"/>
+                            <ListView x:Name="DupList" Grid.Row="1" BorderThickness="0" Background="Transparent"
+                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="Background" Value="{Binding Shade}"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Width="36">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Group" Width="60" DisplayMemberBinding="{Binding Group}"/>
+                                        <GridViewColumn Header="File" Width="500" DisplayMemberBinding="{Binding Display}"/>
+                                        <GridViewColumn Header="Size" Width="90" DisplayMemberBinding="{Binding SizeText}"/>
+                                        <GridViewColumn Header="Modified" Width="130" DisplayMemberBinding="{Binding ModifiedText}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ============ TAB 4: HISTORY ============ -->
+            <TabItem Header="History" Style="{StaticResource Win11Tab}">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondary}"
+                                   Text="Every backup run, cleanup and duplicate removal this app has done — kept across sessions."/>
+                        <Button x:Name="HistoryRefreshBtn" Grid.Column="1" Style="{StaticResource SecondaryButton}"
+                                Content="Refresh" Margin="8,0,0,0" Click="HistoryRefreshBtn_Click"
+                                ToolTip="{StaticResource Tip_HistoryRefresh}"/>
+                        <Button x:Name="HistoryOpenLogBtn" Grid.Column="2" Style="{StaticResource SecondaryButton}"
+                                Content="Open log file" Margin="8,0,0,0" Click="HistoryOpenLogBtn_Click"
+                                ToolTip="{StaticResource Tip_HistoryOpenLog}"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <ListView x:Name="HistoryList" Grid.Row="0" MaxHeight="260" BorderThickness="0"
+                                      Background="Transparent" SelectionChanged="HistoryList_SelectionChanged"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="When" Width="150" DisplayMemberBinding="{Binding WhenText}"/>
+                                        <GridViewColumn Header="Kind" Width="90" DisplayMemberBinding="{Binding Kind}"/>
+                                        <GridViewColumn Header="Summary" Width="640" DisplayMemberBinding="{Binding Summary}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                            <TextBox x:Name="HistoryDetail" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                     FontFamily="Cascadia Mono, Consolas" FontSize="11.5" Margin="0,8,0,0"
+                                     Background="#FAFAFA" BorderBrush="#E5E5E5" Padding="8"
+                                     Text="Select an entry above to see its details."/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</Window>

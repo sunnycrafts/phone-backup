@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\Cleaner.cs" />
+    <Compile Include="..\DuplicateFinder.cs" />
+    <Compile Include="..\DeleteVault.cs" />
+    <Compile Include="..\BackupEngine.cs" />
+    <Compile Include="..\Settings.cs" />
+    <Compile Include="..\Hashing.cs" />
+    <Compile Include="..\ContentIndex.cs" />
+    <Compile Include="..\HistoryLog.cs" />
+  </ItemGroup>
+</Project>
